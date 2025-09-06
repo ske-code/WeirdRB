@@ -1,99 +1,47 @@
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/cat"))()
-local Window = Library:CreateWindow("ske.gg", Vector2.new(492, 598), Enum.KeyCode.RightControl)
-local AimingTab = Window:CreateTab("Ragebot")
+local repo = 'https://raw.githubusercontent.com/mstudio45/LinoriaLib/main/'
 
-local RagebotSection = AimingTab:CreateSector("Ragebot Settings", "left")
-local TracerSection = AimingTab:CreateSector("Tracer Settings", "right")
-local ProtectSection = AimingTab:CreateSector("Protect Settings", "left")
+local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
+local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
+local SaveManager = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
+local Options = Library.Options
+local Toggles = Library.Toggles
 
-local EnabledToggle = RagebotSection:AddToggle("Enabled", false, function(state)
-    getgenv().RagebotEnabled = state
-end)
+Library.ShowToggleFrameInKeybinds = true
+Library.ShowCustomCursor = true
+Library.NotifySide = "Left"
 
-local FireRateSlider = RagebotSection:AddSlider("FireRate", 1, 500, 1000, 1, function(value)
-    getgenv().FireRate = value
-    getgenv().FireWait = 1 / value
-end)
+local Window = Library:CreateWindow({
+    Title = 'ske.gg - Ragebot',
+    Center = true,
+    AutoShow = true,
+    Resizable = true,
+    ShowCustomCursor = true,
+    NotifySide = "Left",
+    TabPadding = 8,
+    MenuFadeTime = 0.2
+})
 
-local HitSoundDropdown = RagebotSection:AddDropdown("HitSound", {"Bell", "None", "Classic"}, "Bell", true, function(selected)
-    getgenv().HitSoundId = selected == "Bell" and "rbxassetid://6534948092" 
-                         or selected == "None" and "rbxassetid://4817809188" 
-                         or "rbxassetid://160432334"
-end)
+local Tabs = {
+    Ragebot = Window:AddTab('Ragebot'),
+    ['UI Settings'] = Window:AddTab('UI Settings'),
+}
 
-local DamageSlider = RagebotSection:AddSlider("Damage", 1, 999, 999, 1, function(value)
-    getgenv().DamageValue = value
-end)
-
-local TeamCheckToggle = RagebotSection:AddToggle("TeamCheck", true, function(state)
-    getgenv().TeamCheck = state
-end)
-
-local WallbangToggle = RagebotSection:AddToggle("Wallbang", false, function(state)
-    getgenv().Wallbang = state
-end)
-
-local RandomBulletToggle = RagebotSection:AddToggle("Random Bullet", false, function(state)
-    getgenv().RandomBullet = state
-end)
-
-local RandomOffsetSlider = RagebotSection:AddSlider("Random Offset", 1, 5, 20, 1, function(value)
-    getgenv().RandomOffset = value
-end)
-
-local TracerToggle = TracerSection:AddToggle("Tracer", true, function(state)
-    getgenv().ShowTracer = state
-end)
-
-local BrightnessSlider = TracerSection:AddSlider("Brightness", 1, 5, 10, 1, function(value)
-    getgenv().TracerBrightness = value
-end)
-
-local LightEmissionSlider = TracerSection:AddSlider("Light Emission", 0, 1, 1, 0.1, function(value)
-    getgenv().TracerLightEmission = value
-end)
-
-local TextureSpeedSlider = TracerSection:AddSlider("Texture Speed", 0, 2, 10, 0.1, function(value)
-    getgenv().TracerTextureSpeed = value
-end)
-
-local TracerWidthSlider = TracerSection:AddSlider("Width", 0.1, 0.5, 2, 0.1, function(value)
-    getgenv().TracerWidth = value
-end)
-
-local TracerLifetimeSlider = TracerSection:AddSlider("Lifetime", 1, 5, 100, 1, function(value)
-    getgenv().TracerLifetime = value / 10
-end)
-
-local ColorTextbox = TracerSection:AddTextbox("Color (R,G,B)", "180,143,255", function(text)
-    local r, g, b = text:match("(%d+),(%d+),(%d+)")
-    if r and g and b then
-        getgenv().TracerColor = Color3.fromRGB(tonumber(r), tonumber(g), tonumber(b))
-    end
-end)
-
-local ProtectToggle = ProtectSection:AddToggle("Protect", false, function(state)
-    getgenv().ProtectEnabled = state
-    if state then
-        protectPlayerName()
-    end
-end)
-
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-
-local localPlayer = Players.LocalPlayer
+local RagebotLeft = Tabs.Ragebot:AddLeftGroupbox('Ragebot Settings')
+local RagebotRight = Tabs.Ragebot:AddRightGroupbox('Tracer Settings')
+local ProtectRight = Tabs.Ragebot:AddRightGroupbox('Protect Settings')
+local LogsRight = Tabs.Ragebot:AddRightGroupbox('Hit Logs Settings')
 
 getgenv().RagebotEnabled = false
 getgenv().FireRate = 500
-getgenv().FireWait = 1 / 500
+getgenv().FireWait = 0.002
 getgenv().HitSoundId = "rbxassetid://6534948092"
 getgenv().DamageValue = 999
 getgenv().TeamCheck = true
 getgenv().Wallbang = false
 getgenv().RandomBullet = false
 getgenv().RandomOffset = 5
+getgenv().RandomAngle = false
+getgenv().RandomAngleAmount = 5
 getgenv().ShowTracer = true
 getgenv().TracerBrightness = 5
 getgenv().TracerLightEmission = 1
@@ -102,6 +50,267 @@ getgenv().TracerWidth = 0.5
 getgenv().TracerLifetime = 0.5
 getgenv().TracerColor = Color3.fromRGB(180, 143, 255)
 getgenv().ProtectEnabled = false
+getgenv().TargetLockEnabled = false
+getgenv().TargetList = {}
+getgenv().Whitelist = {}
+getgenv().HitLogsEnabled = true
+getgenv().HitLogsDuration = 5
+
+RagebotLeft:AddToggle('RagebotEnabled', {
+    Text = 'Enabled',
+    Default = false,
+    Callback = function(Value)
+        getgenv().RagebotEnabled = Value
+    end
+})
+
+RagebotLeft:AddSlider('FireRate', {
+    Text = 'FireRate',
+    Default = 500,
+    Min = 1,
+    Max = 1000,
+    Rounding = 0,
+    Callback = function(Value)
+        getgenv().FireRate = Value
+        getgenv().FireWait = 1 / Value
+    end
+})
+
+RagebotLeft:AddDropdown('HitSound', {
+    Values = {'Bell', 'None', 'Classic'},
+    Default = 1,
+    Callback = function(Value)
+        getgenv().HitSoundId = Value == "Bell" and "rbxassetid://6534948092" 
+                             or Value == "None" and "rbxassetid://4817809188" 
+                             or "rbxassetid://160432334"
+    end
+})
+
+RagebotLeft:AddSlider('Damage', {
+    Text = 'Damage',
+    Default = 999,
+    Min = 1,
+    Max = 999,
+    Rounding = 0,
+    Callback = function(Value)
+        getgenv().DamageValue = Value
+    end
+})
+
+RagebotLeft:AddToggle('TeamCheck', {
+    Text = 'TeamCheck',
+    Default = true,
+    Callback = function(Value)
+        getgenv().TeamCheck = Value
+    end
+})
+
+RagebotLeft:AddToggle('Wallbang', {
+    Text = 'Wallbang',
+    Default = false,
+    Callback = function(Value)
+        getgenv().Wallbang = Value
+    end
+})
+
+RagebotLeft:AddToggle('RandomBullet', {
+    Text = 'Random Bullet',
+    Default = false,
+    Callback = function(Value)
+        getgenv().RandomBullet = Value
+    end
+})
+
+RagebotLeft:AddSlider('RandomOffset', {
+    Text = 'Random Offset',
+    Default = 5,
+    Min = 1,
+    Max = 20,
+    Rounding = 0,
+    Callback = function(Value)
+        getgenv().RandomOffset = Value
+    end
+})
+
+RagebotLeft:AddToggle('RandomAngle', {
+    Text = 'Random Angle',
+    Default = false,
+    Callback = function(Value)
+        getgenv().RandomAngle = Value
+    end
+})
+
+RagebotLeft:AddSlider('RandomAngleAmount', {
+    Text = 'Random Angle Amount',
+    Default = 5,
+    Min = 1,
+    Max = 30,
+    Rounding = 0,
+    Callback = function(Value)
+        getgenv().RandomAngleAmount = Value
+    end
+})
+
+RagebotLeft:AddToggle('TargetLock', {
+    Text = 'Target Lock',
+    Default = false,
+    Callback = function(Value)
+        getgenv().TargetLockEnabled = Value
+        if not Value then
+            getgenv().LockedTarget = nil
+        end
+    end
+})
+
+RagebotLeft:AddDropdown('TargetList', {
+    Values = {},
+    Default = 1,
+    Multi = true,
+    Text = 'Target List',
+    Callback = function(Value, Key, State)
+        getgenv().TargetList = {}
+        for name, selected in pairs(Options.TargetList.Value) do
+            if selected then
+                table.insert(getgenv().TargetList, name)
+            end
+        end
+    end
+})
+
+RagebotLeft:AddDropdown('Whitelist', {
+    Values = {},
+    Default = 1,
+    Multi = true,
+    Text = 'Whitelist',
+    Callback = function(Value, Key, State)
+        getgenv().Whitelist = {}
+        for name, selected in pairs(Options.Whitelist.Value) do
+            if selected then
+                table.insert(getgenv().Whitelist, name)
+            end
+        end
+    end
+})
+
+RagebotRight:AddToggle('ShowTracer', {
+    Text = 'Tracer',
+    Default = true,
+    Callback = function(Value)
+        getgenv().ShowTracer = Value
+    end
+}):AddColorPicker('TracerColor', {
+    Default = Color3.fromRGB(180, 143, 255),
+    Callback = function(Value)
+        getgenv().TracerColor = Value
+    end
+})
+
+RagebotRight:AddSlider('TracerBrightness', {
+    Text = 'Brightness',
+    Default = 5,
+    Min = 1,
+    Max = 10,
+    Rounding = 0,
+    Callback = function(Value)
+        getgenv().TracerBrightness = Value
+    end
+})
+
+RagebotRight:AddSlider('TracerLightEmission', {
+    Text = 'Light Emission',
+    Default = 1,
+    Min = 0,
+    Max = 1,
+    Rounding = 1,
+    Callback = function(Value)
+        getgenv().TracerLightEmission = Value
+    end
+})
+
+RagebotRight:AddSlider('TracerTextureSpeed', {
+    Text = 'Texture Speed',
+    Default = 2,
+    Min = 0,
+    Max = 10,
+    Rounding = 1,
+    Callback = function(Value)
+        getgenv().TracerTextureSpeed = Value
+    end
+})
+
+RagebotRight:AddSlider('TracerWidth', {
+    Text = 'Width',
+    Default = 0.5,
+    Min = 0.1,
+    Max = 2,
+    Rounding = 1,
+    Callback = function(Value)
+        getgenv().TracerWidth = Value
+    end
+})
+
+RagebotRight:AddSlider('TracerLifetime', {
+    Text = 'Lifetime',
+    Default = 5,
+    Min = 1,
+    Max = 100,
+    Rounding = 0,
+    Callback = function(Value)
+        getgenv().TracerLifetime = Value / 10
+    end
+})
+
+ProtectRight:AddToggle('ProtectEnabled', {
+    Text = 'Protect',
+    Default = false,
+    Callback = function(Value)
+        getgenv().ProtectEnabled = Value
+        if Value then
+            protectPlayerName()
+        else
+            restorePlayerName()
+        end
+    end
+})
+
+LogsRight:AddToggle('HitLogsEnabled', {
+    Text = 'Hit Logs',
+    Default = true,
+    Callback = function(Value)
+        getgenv().HitLogsEnabled = Value
+    end
+})
+
+LogsRight:AddSlider('HitLogsDuration', {
+    Text = 'Logs Duration',
+    Default = 5,
+    Min = 1,
+    Max = 10,
+    Rounding = 0,
+    Callback = function(Value)
+        getgenv().HitLogsDuration = Value
+    end
+})
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local localPlayer = Players.LocalPlayer
+local originalName = localPlayer.Name
+local originalDisplayName = localPlayer.DisplayName
+
+function updatePlayerLists()
+    local playerNames = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer then
+            table.insert(playerNames, player.Name)
+        end
+    end
+    
+    Options.TargetList:SetValues(playerNames)
+    Options.Whitelist:SetValues(playerNames)
+end
 
 function protectPlayerName()
     if not getgenv().ProtectEnabled then return end
@@ -113,24 +322,45 @@ function protectPlayerName()
         "Anonymous_" .. math.random(100000, 999999)
     }
     
-    local originalName = localPlayer.Name
+    local randomDisplayNames = {
+        "Player" .. math.random(1000, 9999),
+        "User" .. math.random(100, 999),
+        "Guest" .. math.random(10, 99),
+        "Anonymous" .. math.random(1000, 9999)
+    }
+    
     local randomName = randomNames[math.random(1, #randomNames)]
+    local randomDisplayName = randomDisplayNames[math.random(1, #randomDisplayNames)]
     
     localPlayer.Name = randomName
+    localPlayer.DisplayName = randomDisplayName
     
     spawn(function()
         while getgenv().ProtectEnabled do
             wait(math.random(5, 15))
             if localPlayer.Name == randomName then
                 local newRandomName = randomNames[math.random(1, #randomNames)]
+                local newRandomDisplayName = randomDisplayNames[math.random(1, #randomDisplayNames)]
                 if newRandomName ~= randomName then
                     localPlayer.Name = newRandomName
+                    localPlayer.DisplayName = newRandomDisplayName
                     randomName = newRandomName
+                    randomDisplayName = newRandomDisplayName
                 end
             end
         end
-        localPlayer.Name = originalName
     end)
+end
+
+function restorePlayerName()
+    localPlayer.Name = originalName
+    localPlayer.DisplayName = originalDisplayName
+end
+
+function showHitLog(targetName, damage)
+    if not getgenv().HitLogsEnabled then return end
+    
+    Library:Notify(("Hit %s for %d damage"):format(targetName, damage), getgenv().HitLogsDuration)
 end
 
 function createHitSound(position)
@@ -153,10 +383,27 @@ function createHitSound(position)
     end)
 end
 
+function getRandomAngleOffset()
+    if not getgenv().RandomAngle then return Vector3.zero end
+    
+    local offset = Vector3.new(
+        math.random(-getgenv().RandomAngleAmount, getgenv().RandomAngleAmount),
+        math.random(-getgenv().RandomAngleAmount, getgenv().RandomAngleAmount),
+        math.random(-getgenv().RandomAngleAmount, getgenv().RandomAngleAmount)
+    )
+    return offset
+end
+
 function createBeamTracer(startPos, endPos)
     if not getgenv().ShowTracer then return end
     
-    local distance = (endPos - startPos).Magnitude
+    local visualEndPos = endPos
+    if getgenv().RandomAngle then
+        local angleOffset = getRandomAngleOffset()
+        visualEndPos = endPos + angleOffset
+    end
+    
+    local distance = (visualEndPos - startPos).Magnitude
     
     local beam = Instance.new("Beam")
     beam.Color = ColorSequence.new(getgenv().TracerColor)
@@ -172,7 +419,7 @@ function createBeamTracer(startPos, endPos)
     local attachment0 = Instance.new("Attachment")
     local attachment1 = Instance.new("Attachment")
     attachment0.WorldPosition = startPos
-    attachment1.WorldPosition = endPos
+    attachment1.WorldPosition = visualEndPos
     
     beam.Attachment0 = attachment0
     beam.Attachment1 = attachment1
@@ -207,14 +454,21 @@ function getCurrentTool()
     return nil
 end
 
+function isWhitelisted(player)
+    for _, whitelistedName in pairs(getgenv().Whitelist) do
+        if player.Name == whitelistedName then
+            return true
+        end
+    end
+    return false
+end
+
 function shouldTargetPlayer(player)
-    if not getgenv().TeamCheck then
-        return true
-    end
+    if isWhitelisted(player) then return false end
     
-    if not localPlayer.Team or not player.Team then
-        return true
-    end
+    if not getgenv().TeamCheck then return true end
+    
+    if not localPlayer.Team or not player.Team then return true end
     
     return player.Team ~= localPlayer.Team
 end
@@ -225,18 +479,48 @@ function getNearestTarget()
     local targetPosition = nil
     local targetHumanoid = nil
     
+    if getgenv().TargetLockEnabled and getgenv().LockedTarget then
+        local target = getgenv().LockedTarget
+        if target and target.Character then
+            local humanoid = target.Character:FindFirstChild("Humanoid")
+            local humanoidRootPart = target.Character:FindFirstChild("HumanoidRootPart")
+            if humanoid and humanoid.Health > 0 and humanoidRootPart then
+                return target, humanoidRootPart.Position, humanoid
+            else
+                getgenv().LockedTarget = nil
+            end
+        else
+            getgenv().LockedTarget = nil
+        end
+    end
+    
+    local validTargets = {}
+    
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= localPlayer and shouldTargetPlayer(player) and player.Character then
+            if #getgenv().TargetList > 0 then
+                local isInTargetList = false
+                for _, targetName in pairs(getgenv().TargetList) do
+                    if player.Name == targetName then
+                        isInTargetList = true
+                        break
+                    end
+                end
+                if not isInTargetList then
+                    continue
+                end
+            end
+            
             local humanoid = player.Character:FindFirstChild("Humanoid")
             local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
             if humanoid and humanoid.Health > 0 and humanoidRootPart then
                 local distance = (humanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    nearestTarget = player
-                    targetPosition = humanoidRootPart.Position
-                    targetHumanoid = humanoid
-                end
+                table.insert(validTargets, {
+                    target = player,
+                    position = humanoidRootPart.Position,
+                    humanoid = humanoid,
+                    distance = distance
+                })
             end
         end
     end
@@ -249,38 +533,100 @@ function getNearestTarget()
                 local humanoidRootPart = npc:FindFirstChild("HumanoidRootPart")
                 if humanoid and humanoidRootPart then
                     local distance = (humanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-                    if distance < shortestDistance then
-                        shortestDistance = distance
-                        nearestTarget = npc
-                        targetPosition = humanoidRootPart.Position
-                        targetHumanoid = humanoid
-                    end
+                    table.insert(validTargets, {
+                        target = npc,
+                        position = humanoidRootPart.Position,
+                        humanoid = humanoid,
+                        distance = distance
+                    })
                 end
             end
         end
     end
     
+    for _, targetInfo in pairs(validTargets) do
+        if targetInfo.distance < shortestDistance then
+            shortestDistance = targetInfo.distance
+            nearestTarget = targetInfo.target
+            targetPosition = targetInfo.position
+            targetHumanoid = targetInfo.humanoid
+        end
+    end
+    
+    if getgenv().TargetLockEnabled and nearestTarget then
+        getgenv().LockedTarget = nearestTarget
+    end
+    
     return nearestTarget, targetPosition, targetHumanoid
+end
+
+function isWallBetween(startPos, endPos)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {localPlayer.Character}
+    
+    local direction = (endPos - startPos)
+    local raycastResult = workspace:Raycast(startPos, direction, raycastParams)
+    
+    if raycastResult then
+        local hitPart = raycastResult.Instance
+        if hitPart and hitPart.CanCollide then
+            local humanoid = hitPart:FindFirstAncestorOfClass("Model"):FindFirstChild("Humanoid")
+            if not humanoid then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function getWallbangPosition(startPos, endPos)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {localPlayer.Character}
+    
+    local direction = (endPos - startPos)
+    local raycastResult = workspace:Raycast(startPos, direction, raycastParams)
+    
+    if raycastResult then
+        local hitPosition = raycastResult.Position
+        local hitNormal = raycastResult.Normal
+        return hitPosition - (hitNormal * 0.1)
+    end
+    return endPos
 end
 
 spawn(function()
     while true do
         wait(getgenv().FireWait)
-        if getgenv().RagebotEnabled and localPlayer.Character then
+        if getgenv().RagebotEnabled and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local tool = getCurrentTool()
             local nearestTarget, targetPosition, targetHumanoid = getNearestTarget()
             
             if tool and nearestTarget and targetPosition and targetHumanoid then
+                local startPos = localPlayer.Character.HumanoidRootPart.Position
                 local finalTargetPosition = targetPosition
                 
+                if not getgenv().Wallbang then
+                    if isWallBetween(startPos, finalTargetPosition) then
+                        continue
+                    end
+                end
+                
+                local visualTargetPosition = targetPosition
                 if getgenv().RandomBullet then
-                    finalTargetPosition = getRandomOffsetPosition(targetPosition)
+                    visualTargetPosition = getRandomOffsetPosition(targetPosition)
+                end
+                
+                local tracerEndPos = visualTargetPosition
+                if getgenv().Wallbang then
+                    tracerEndPos = getWallbangPosition(startPos, visualTargetPosition)
                 end
                 
                 local args = {
                     os.clock(),
                     tool,
-                    CFrame.lookAt(localPlayer.Character.HumanoidRootPart.Position, finalTargetPosition),
+                    CFrame.lookAt(startPos, finalTargetPosition),
                     getgenv().Wallbang,
                     {
                         ["1"] = {
@@ -293,11 +639,25 @@ spawn(function()
                 }
                 
                 game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Shoot"):FireServer(unpack(args))
-                createBeamTracer(localPlayer.Character.HumanoidRootPart.Position, finalTargetPosition)
+                createBeamTracer(startPos, tracerEndPos)
                 createHitSound(targetPosition)
+                
+                if nearestTarget:IsA("Player") then
+                    showHitLog(nearestTarget.Name, getgenv().DamageValue)
+                end
             end
         end
     end
 end)
 
-AimingTab:CreateConfigSystem("right")
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
+SaveManager:BuildConfigSection(Tabs['UI Settings'])
+ThemeManager:ApplyToTab(Tabs['UI Settings'])
+SaveManager:LoadAutoloadConfig()
+
+updatePlayerLists()
+Players.PlayerAdded:Connect(updatePlayerLists)
+Players.PlayerRemoving:Connect(updatePlayerLists)
