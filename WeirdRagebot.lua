@@ -560,24 +560,29 @@ function getNearestTarget()
     return nearestTarget, targetPosition, targetHumanoid
 end
 
-function isWallBetween(startPos, endPos)
+function canSeeTarget(startPos, endPos)
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
     raycastParams.FilterDescendantsInstances = {localPlayer.Character}
     
     local direction = (endPos - startPos)
-    local raycastResult = workspace:Raycast(startPos, direction, raycastParams)
+    local distance = direction.Magnitude
+    local raycastResult = workspace:Raycast(startPos, direction.Unit * distance, raycastParams)
     
     if raycastResult then
         local hitPart = raycastResult.Instance
         if hitPart and hitPart.CanCollide then
-            local humanoid = hitPart:FindFirstAncestorOfClass("Model"):FindFirstChild("Humanoid")
-            if not humanoid then
-                return true
+            local model = hitPart:FindFirstAncestorOfClass("Model")
+            if model then
+                local humanoid = model:FindFirstChild("Humanoid")
+                if humanoid then
+                    return true
+                end
             end
+            return false
         end
     end
-    return false
+    return true
 end
 
 function findVisiblePosition(startPos, targetPos)
