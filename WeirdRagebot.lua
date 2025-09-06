@@ -590,36 +590,42 @@ function findVisiblePosition(startPos, targetPos)
     
     local raycastResult = workspace:Raycast(startPos, direction.Unit * distance, raycastParams)
     
-    if raycastResult then
-        local hitPosition = raycastResult.Position
-        local hitNormal = raycastResult.Normal
-        
-        local offsetDistance = 2.0
-        local sideOffset1 = hitNormal:Cross(Vector3.new(0, 1, 0)).Unit * offsetDistance
-        local sideOffset2 = -sideOffset1
-        
-        local testPositions = {
-            hitPosition + sideOffset1,
-            hitPosition + sideOffset2,
-            hitPosition + sideOffset1 + Vector3.new(0, offsetDistance, 0),
-            hitPosition + sideOffset2 + Vector3.new(0, offsetDistance, 0),
-            hitPosition + hitNormal * -offsetDistance
-        }
-        
-        for _, testPos in ipairs(testPositions) do
-            local testDirection = (targetPos - testPos)
-            local testDistance = testDirection.Magnitude
-            local testRay = workspace:Raycast(testPos, testDirection.Unit * testDistance, raycastParams)
-            
-            if not testRay then
-                return testPos, targetPos
-            end
-        }
-        
-        return hitPosition - (hitNormal * 0.5), targetPos
+    if not raycastResult then
+        return startPos, targetPos
     end
     
-    return startPos, targetPos
+    local hitPosition = raycastResult.Position
+    local hitNormal = raycastResult.Normal
+    
+    local offsetDistance = 2.0
+    local testPositions = {}
+    
+    for x = -1, 1 do
+        for y = -1, 1 do
+            for z = -1, 1 do
+                if x ~= 0 or y ~= 0 or z ~= 0 then
+                    local offset = Vector3.new(x, y, z).Unit * offsetDistance
+                    table.insert(testPositions, hitPosition + offset)
+                end
+            end
+        end
+    end
+    
+    table.sort(testPositions, function(a, b)
+        return (a - targetPos).Magnitude < (b - targetPos).Magnitude
+    end)
+    
+    for _, testPos in ipairs(testPositions) do
+        local testDirection = (targetPos - testPos)
+        local testDistance = testDirection.Magnitude
+        local testRay = workspace:Raycast(testPos, testDirection.Unit * testDistance, raycastParams)
+        
+        if not testRay then
+            return testPos, targetPos
+        end
+    end
+    
+    return hitPosition - (hitNormal * 0.5), targetPos
 end
 
 spawn(function()
