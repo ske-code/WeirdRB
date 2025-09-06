@@ -580,20 +580,46 @@ function isWallBetween(startPos, endPos)
     return false
 end
 
-function getWallbangPosition(startPos, endPos)
+function findVisiblePosition(startPos, targetPos)
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
     raycastParams.FilterDescendantsInstances = {localPlayer.Character}
     
-    local direction = (endPos - startPos)
-    local raycastResult = workspace:Raycast(startPos, direction, raycastParams)
+    local direction = (targetPos - startPos)
+    local distance = direction.Magnitude
+    
+    local raycastResult = workspace:Raycast(startPos, direction.Unit * distance, raycastParams)
     
     if raycastResult then
         local hitPosition = raycastResult.Position
         local hitNormal = raycastResult.Normal
-        return hitPosition - (hitNormal * 0.1)
+        
+        local offsetDistance = 2.0
+        local sideOffset1 = hitNormal:Cross(Vector3.new(0, 1, 0)).Unit * offsetDistance
+        local sideOffset2 = -sideOffset1
+        
+        local testPositions = {
+            hitPosition + sideOffset1,
+            hitPosition + sideOffset2,
+            hitPosition + sideOffset1 + Vector3.new(0, offsetDistance, 0),
+            hitPosition + sideOffset2 + Vector3.new(0, offsetDistance, 0),
+            hitPosition + hitNormal * -offsetDistance
+        }
+        
+        for _, testPos in ipairs(testPositions) do
+            local testDirection = (targetPos - testPos)
+            local testDistance = testDirection.Magnitude
+            local testRay = workspace:Raycast(testPos, testDirection.Unit * testDistance, raycastParams)
+            
+            if not testRay then
+                return testPos, targetPos
+            end
+        }
+        
+        return hitPosition - (hitNormal * 0.5), targetPos
     end
-    return endPos
+    
+    return startPos, targetPos
 end
 
 spawn(function()
@@ -608,7 +634,7 @@ spawn(function()
                 local finalTargetPosition = targetPosition
                 
                 if not getgenv().Wallbang then
-                    if isWallBetween(startPos, finalTargetPosition) then
+                    if not canSeeTarget(startPos, finalTargetPosition) then
                         continue
                     end
                 end
@@ -618,9 +644,11 @@ spawn(function()
                     visualTargetPosition = getRandomOffsetPosition(targetPosition)
                 end
                 
+                local tracerStartPos = startPos
                 local tracerEndPos = visualTargetPosition
+                
                 if getgenv().Wallbang then
-                    tracerEndPos = getWallbangPosition(startPos, visualTargetPosition)
+                    tracerStartPos, tracerEndPos = findVisiblePosition(startPos, visualTargetPosition)
                 end
                 
                 local args = {
@@ -639,7 +667,7 @@ spawn(function()
                 }
                 
                 game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Shoot"):FireServer(unpack(args))
-                createBeamTracer(startPos, tracerEndPos)
+                createBeamTracer(tracerStartPos, tracerEndPos)
                 createHitSound(targetPosition)
                 
                 if nearestTarget:IsA("Player") then
@@ -649,7 +677,6 @@ spawn(function()
         end
     end
 end)
-
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
