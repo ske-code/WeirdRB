@@ -291,7 +291,39 @@ LogsRight:AddSlider('HitLogsDuration', {
         getgenv().HitLogsDuration = Value
     end
 })
+RagebotRight:AddToggle('TracerAnimation', {
+    Text = 'Tracer Animation',
+    Default = false,
+    Callback = function(Value)
+        getgenv().TracerAnimation = Value
+    end
+})
 
+RagebotRight:AddSlider('TracerAppearSpeed', {
+    Text = 'Appear Speed',
+    Default = 1,
+    Min = 0.1,
+    Max = 5,
+    Rounding = 1,
+    Callback = function(Value)
+        getgenv().TracerAppearSpeed = Value
+    end
+})
+
+RagebotRight:AddSlider('TracerDisappearSpeed', {
+    Text = 'Disappear Speed',
+    Default = 1,
+    Min = 0.1,
+    Max = 5,
+    Rounding = 1,
+    Callback = function(Value)
+        getgenv().TracerDisappearSpeed = Value
+    end
+})
+
+getgenv().TracerAnimation = false
+getgenv().TracerAppearSpeed = 1
+getgenv().TracerDisappearSpeed = 1
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -357,11 +389,6 @@ function restorePlayerName()
     localPlayer.DisplayName = originalDisplayName
 end
 
-function showHitLog(targetName, damage)
-    if not getgenv().HitLogsEnabled then return end
-    
-    Library:Notify(("Hit %s for %d damage"):format(targetName, damage), getgenv().HitLogsDuration)
-end
 
 function createHitSound(position)
     local soundPart = Instance.new("Part")
@@ -397,36 +424,78 @@ end
 function createBeamTracer(startPos, endPos)
     if not getgenv().ShowTracer then return end
     
-    local beam = Instance.new("Beam")
-    beam.Color = ColorSequence.new(getgenv().TracerColor)
-    beam.Width0 = getgenv().TracerWidth
-    beam.Width1 = getgenv().TracerWidth
-    beam.Texture = "rbxassetid://7136858729"
-    beam.TextureSpeed = getgenv().TracerTextureSpeed
-    beam.Brightness = getgenv().TracerBrightness
-    beam.LightEmission = getgenv().TracerLightEmission
-    beam.FaceCamera = true
-    
-    local attachment0 = Instance.new("Attachment")
-    local attachment1 = Instance.new("Attachment")
-    attachment0.WorldPosition = startPos
-    attachment1.WorldPosition = startPos
-    
-    beam.Attachment0 = attachment0
-    beam.Attachment1 = attachment1
-    beam.Parent = Workspace
-    attachment0.Parent = Workspace
-    attachment1.Parent = Workspace
-    
-    local tweenInfo = TweenInfo.new(getgenv().TracerLifetime, Enum.EasingStyle.Linear)
-    local tween = game:GetService("TweenService"):Create(attachment1, tweenInfo, {WorldPosition = endPos})
-    tween:Play()
-    
-    delay(getgenv().TracerLifetime, function()
-        beam:Destroy()
-        attachment0:Destroy()
-        attachment1:Destroy()
-    end)
+    if getgenv().TracerAnimation then
+        local beam = Instance.new("Beam")
+        beam.Color = ColorSequence.new(getgenv().TracerColor)
+        beam.Width0 = 0
+        beam.Width1 = 0
+        beam.Texture = "rbxassetid://7136858729"
+        beam.TextureSpeed = getgenv().TracerTextureSpeed
+        beam.Brightness = getgenv().TracerBrightness
+        beam.LightEmission = getgenv().TracerLightEmission
+        beam.FaceCamera = true
+        
+        local attachment0 = Instance.new("Attachment")
+        local attachment1 = Instance.new("Attachment")
+        attachment0.WorldPosition = startPos
+        attachment1.WorldPosition = startPos
+        
+        beam.Attachment0 = attachment0
+        beam.Attachment1 = attachment1
+        beam.Parent = Workspace
+        attachment0.Parent = Workspace
+        attachment1.Parent = Workspace
+        
+        local appearTweenInfo = TweenInfo.new(0.2 / getgenv().TracerAppearSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local mainTweenInfo = TweenInfo.new(getgenv().TracerLifetime, Enum.EasingStyle.Linear)
+        local disappearTweenInfo = TweenInfo.new(0.3 / getgenv().TracerDisappearSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        
+        local appearTween = game:GetService("TweenService"):Create(beam, appearTweenInfo, {Width0 = getgenv().TracerWidth, Width1 = getgenv().TracerWidth})
+        local mainTween = game:GetService("TweenService"):Create(attachment1, mainTweenInfo, {WorldPosition = endPos})
+        local disappearTween = game:GetService("TweenService"):Create(beam, disappearTweenInfo, {Width0 = 0, Width1 = 0})
+        
+        appearTween:Play()
+        mainTween:Play()
+        
+        delay(getgenv().TracerLifetime, function()
+            disappearTween:Play()
+            disappearTween.Completed:Connect(function()
+                beam:Destroy()
+                attachment0:Destroy()
+                attachment1:Destroy()
+            end)
+        end)
+    else
+        local distance = (endPos - startPos).Magnitude
+        
+        local beam = Instance.new("Beam")
+        beam.Color = ColorSequence.new(getgenv().TracerColor)
+        beam.Width0 = getgenv().TracerWidth
+        beam.Width1 = getgenv().TracerWidth
+        beam.Texture = "rbxassetid://7136858729"
+        beam.TextureSpeed = getgenv().TracerTextureSpeed
+        beam.TextureLength = distance / 5
+        beam.Brightness = getgenv().TracerBrightness
+        beam.LightEmission = getgenv().TracerLightEmission
+        beam.FaceCamera = true
+        
+        local attachment0 = Instance.new("Attachment")
+        local attachment1 = Instance.new("Attachment")
+        attachment0.WorldPosition = startPos
+        attachment1.WorldPosition = endPos
+        
+        beam.Attachment0 = attachment0
+        beam.Attachment1 = attachment1
+        beam.Parent = Workspace
+        attachment0.Parent = Workspace
+        attachment1.Parent = Workspace
+        
+        delay(getgenv().TracerLifetime, function()
+            beam:Destroy()
+            attachment0:Destroy()
+            attachment1:Destroy()
+        end)
+    end
 end
 
 function getRandomOffsetPosition(targetPosition)
@@ -554,7 +623,11 @@ function getNearestTarget()
     
     return nearestTarget, targetPosition, targetHumanoid
 end
-
+function showHitLog(targetName, damage)
+    if not getgenv().HitLogsEnabled then return end
+    
+    Library:Notify(("Hit %s for %d damage"):format(targetName, damage), getgenv().HitLogsDuration)
+end
 function canSeeTarget(startPos, endPos)
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
