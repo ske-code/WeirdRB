@@ -397,21 +397,12 @@ end
 function createBeamTracer(startPos, endPos)
     if not getgenv().ShowTracer then return end
     
-    local visualEndPos = endPos
-    if getgenv().RandomAngle then
-        local angleOffset = getRandomAngleOffset()
-        visualEndPos = endPos + angleOffset
-    end
-    
-    local distance = (visualEndPos - startPos).Magnitude
-    
     local beam = Instance.new("Beam")
     beam.Color = ColorSequence.new(getgenv().TracerColor)
     beam.Width0 = getgenv().TracerWidth
     beam.Width1 = getgenv().TracerWidth
     beam.Texture = "rbxassetid://7136858729"
     beam.TextureSpeed = getgenv().TracerTextureSpeed
-    beam.TextureLength = distance / 5
     beam.Brightness = getgenv().TracerBrightness
     beam.LightEmission = getgenv().TracerLightEmission
     beam.FaceCamera = true
@@ -419,13 +410,17 @@ function createBeamTracer(startPos, endPos)
     local attachment0 = Instance.new("Attachment")
     local attachment1 = Instance.new("Attachment")
     attachment0.WorldPosition = startPos
-    attachment1.WorldPosition = visualEndPos
+    attachment1.WorldPosition = startPos
     
     beam.Attachment0 = attachment0
     beam.Attachment1 = attachment1
     beam.Parent = Workspace
     attachment0.Parent = Workspace
     attachment1.Parent = Workspace
+    
+    local tweenInfo = TweenInfo.new(getgenv().TracerLifetime, Enum.EasingStyle.Linear)
+    local tween = game:GetService("TweenService"):Create(attachment1, tweenInfo, {WorldPosition = endPos})
+    tween:Play()
     
     delay(getgenv().TracerLifetime, function()
         beam:Destroy()
@@ -600,37 +595,45 @@ function findVisiblePosition(startPos, targetPos)
     end
     
     local hitPosition = raycastResult.Position
-    local hitNormal = raycastResult.Normal
+    local hitPart = raycastResult.Instance
     
-    local offsetDistance = 2.0
-    local testPositions = {}
-    
-    for x = -1, 1 do
-        for y = -1, 1 do
-            for z = -1, 1 do
-                if x ~= 0 or y ~= 0 or z ~= 0 then
-                    local offset = Vector3.new(x, y, z).Unit * offsetDistance
-                    table.insert(testPositions, hitPosition + offset)
-                end
-            end
-        end
+    if not hitPart then
+        return startPos, targetPos
     end
     
-    table.sort(testPositions, function(a, b)
-        return (a - targetPos).Magnitude < (b - targetPos).Magnitude
-    end)
+    local obstacleSize = hitPart.Size
+    local obstacleCFrame = hitPart.CFrame
     
-    for _, testPos in ipairs(testPositions) do
-        local testDirection = (targetPos - testPos)
-        local testDistance = testDirection.Magnitude
-        local testRay = workspace:Raycast(testPos, testDirection.Unit * testDistance, raycastParams)
-        
-        if not testRay then
-            return testPos, targetPos
-        end
+    local toObstacle = (hitPosition - startPos)
+    local rightVector = obstacleCFrame.RightVector
+    local upVector = obstacleCFrame.UpVector
+    local lookVector = obstacleCFrame.LookVector
+    
+    local dotRight = toObstacle:Dot(rightVector)
+    local dotUp = toObstacle:Dot(upVector)
+    local dotLook = toObstacle:Dot(lookVector)
+    
+    local offsetDirection
+    if math.abs(dotRight) >= math.abs(dotUp) and math.abs(dotRight) >= math.abs(dotLook) then
+        offsetDirection = dotRight > 0 and rightVector or -rightVector
+    elseif math.abs(dotUp) >= math.abs(dotLook) then
+        offsetDirection = dotUp > 0 and upVector or -upVector
+    else
+        offsetDirection = dotLook > 0 and lookVector or -lookVector
     end
     
-    return hitPosition - (hitNormal * 0.5), targetPos
+    local offsetDistance = (obstacleSize.X + obstacleSize.Y + obstacleSize.Z) / 6 + 2
+    local testStartPos = hitPosition + offsetDirection * offsetDistance
+    
+    local testDirection = (targetPos - testStartPos)
+    local testDistance = testDirection.Magnitude
+    local testRay = workspace:Raycast(testStartPos, testDirection.Unit * testDistance, raycastParams)
+    
+    if not testRay then
+        return testStartPos, targetPos
+    end
+    
+    return hitPosition, targetPos
 end
 
 spawn(function()
