@@ -306,7 +306,7 @@ RagebotRight:AddSlider('TracerAppearSpeed', {
     Text = 'Appear Speed',
     Default = 1,
     Min = 0.1,
-    Max = 5,
+    Max = 50,
     Rounding = 1,
     Callback = function(Value)
         getgenv().TracerAppearSpeed = Value
@@ -317,7 +317,7 @@ RagebotRight:AddSlider('TracerDisappearSpeed', {
     Text = 'Disappear Speed',
     Default = 1,
     Min = 0.1,
-    Max = 5,
+    Max = 50,
     Rounding = 1,
     Callback = function(Value)
         getgenv().TracerDisappearSpeed = Value
@@ -767,6 +767,94 @@ spawn(function()
         end
     end
 end)
+local AntiLockRight = Tabs.Ragebot:AddLeftGroupbox('Anti Lock Settings')
+
+getgenv().AntiLockEnabled = false
+getgenv().AntiLockStrength = 50
+getgenv().AntiLockRandomness = 10
+getgenv().AntiLockPattern = "Circular"
+
+AntiLockRight:AddToggle('AntiLockEnabled', {
+    Text = 'Anti Lock',
+    Default = false,
+    Callback = function(Value)
+        getgenv().AntiLockEnabled = Value
+    end
+})
+
+AntiLockRight:AddSlider('AntiLockStrength', {
+    Text = 'Strength',
+    Default = 50,
+    Min = 0,
+    Max = 100,
+    Rounding = 0,
+    Callback = function(Value)
+        getgenv().AntiLockStrength = Value
+    end
+})
+
+AntiLockRight:AddSlider('AntiLockRandomness', {
+    Text = 'Randomness',
+    Default = 10,
+    Min = 0,
+    Max = 50,
+    Rounding = 0,
+    Callback = function(Value)
+        getgenv().AntiLockRandomness = Value
+    end
+})
+
+AntiLockRight:AddDropdown('AntiLockPattern', {
+    Values = {'Circular', 'Random', 'Figure8', 'Sinusoidal'},
+    Default = 1,
+    Callback = function(Value)
+        getgenv().AntiLockPattern = Value
+    end
+})
+
+function applyAntiLockOffset(targetPosition)
+    if not getgenv().AntiLockEnabled or getgenv().AntiLockStrength == 0 then
+        return targetPosition
+    end
+
+    local strength = getgenv().AntiLockStrength / 100
+    local randomness = getgenv().AntiLockRandomness / 100
+    local time = tick()
+    
+    local offset = Vector3.new(0, 0, 0)
+    
+    if getgenv().AntiLockPattern == "Circular" then
+        local radius = strength * 5
+        local angle = time * 5
+        offset = Vector3.new(
+            math.cos(angle) * radius,
+            math.sin(angle) * radius * 0.5,
+            0
+        )
+    elseif getgenv().AntiLockPattern == "Random" then
+        offset = Vector3.new(
+            (math.random() - 0.5) * strength * 10 * (1 + randomness),
+            (math.random() - 0.5) * strength * 5 * (1 + randomness),
+            (math.random() - 0.5) * strength * 3 * (1 + randomness)
+        )
+    elseif getgenv().AntiLockPattern == "Figure8" then
+        local scale = strength * 4
+        offset = Vector3.new(
+            math.sin(time * 3) * scale,
+            math.sin(time * 6) * scale * 0.5,
+            0
+        )
+    elseif getgenv().AntiLockPattern == "Sinusoidal" then
+        local scale = strength * 6
+        offset = Vector3.new(
+            math.sin(time * 4) * scale,
+            math.cos(time * 2) * scale * 0.7,
+            math.sin(time * 3) * scale * 0.3
+        )
+    end
+
+    return targetPosition + offset
+end
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
