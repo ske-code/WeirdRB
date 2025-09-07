@@ -24,6 +24,7 @@ local Window = Library:CreateWindow({
 local Tabs = {
     Ragebot = Window:AddTab('Ragebot'),
     ['UI Settings'] = Window:AddTab('UI Settings'),
+    LegitTab = Window:AddTab('LegitBot'),
 }
 
 local RagebotLeft = Tabs.Ragebot:AddLeftGroupbox('Ragebot Settings')
@@ -866,3 +867,186 @@ SaveManager:LoadAutoloadConfig()
 updatePlayerLists()
 Players.PlayerAdded:Connect(updatePlayerLists)
 Players.PlayerRemoving:Connect(updatePlayerLists)
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+local ShootEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Shoot")
+
+getgenv().LegitTracerEnabled = true
+getgenv().LegitTracerVisibleCheck = true
+getgenv().LegitTracerHealthCheck = true
+getgenv().LegitTracerColor = Color3.fromRGB(255, 100, 100)
+getgenv().LegitTracerWidth = 0.3
+getgenv().LegitTracerLifetime = 0.3
+getgenv().LegitAimbotEnabled = true
+getgenv().LegitAimbotFOV = 300
+getgenv().LegitAimbotSmoothness = 10
+getgenv().LegitAimbotPrediction = true
+getgenv().LegitAimbotPredictionAmount = 0.1
+local LegitLeft = Tabs.LegitTab:AddLeftGroupbox('Aimbot Settings')
+local LegitRight = Tabs.LegitTab:AddRightGroupbox('Tracer Settings')
+
+LegitLeft:AddToggle('LegitAimbotEnabled', {
+    Text = 'Aimbot Enabled',
+    Default = true,
+    Callback = function(v) getgenv().LegitAimbotEnabled = v end
+})
+
+LegitLeft:AddSlider('LegitAimbotFOV', {
+    Text = 'FOV',
+    Default = 300,
+    Min = 10,
+    Max = 1000,
+    Rounding = 0,
+    Callback = function(v) getgenv().LegitAimbotFOV = v end
+})
+
+LegitLeft:AddSlider('LegitAimbotSmoothness', {
+    Text = 'Smoothness',
+    Default = 10,
+    Min = 1,
+    Max = 30,
+    Rounding = 0,
+    Callback = function(v) getgenv().LegitAimbotSmoothness = v end
+})
+
+LegitLeft:AddToggle('LegitAimbotPrediction', {
+    Text = 'Prediction',
+    Default = true,
+    Callback = function(v) getgenv().LegitAimbotPrediction = v end
+})
+
+LegitLeft:AddSlider('LegitAimbotPredictionAmount', {
+    Text = 'Prediction Amount',
+    Default = 0.1,
+    Min = 0.05,
+    Max = 0.3,
+    Rounding = 2,
+    Callback = function(v) getgenv().LegitAimbotPredictionAmount = v end
+})
+
+LegitRight:AddToggle('LegitTracerEnabled', {
+    Text = 'Tracer Enabled',
+    Default = true,
+    Callback = function(v) getgenv().LegitTracerEnabled = v end
+}):AddColorPicker('LegitTracerColor', {
+    Default = Color3.fromRGB(255, 100, 100),
+    Callback = function(v) getgenv().LegitTracerColor = v end
+})
+
+LegitRight:AddToggle('LegitTracerVisibleCheck', {
+    Text = 'Visible Check',
+    Default = true,
+    Callback = function(v) getgenv().LegitTracerVisibleCheck = v end
+})
+
+LegitRight:AddToggle('LegitTracerHealthCheck', {
+    Text = 'Health Check',
+    Default = true,
+    Callback = function(v) getgenv().LegitTracerHealthCheck = v end
+})
+
+LegitRight:AddSlider('LegitTracerWidth', {
+    Text = 'Tracer Width',
+    Default = 0.3,
+    Min = 0.1,
+    Max = 2,
+    Rounding = 1,
+    Callback = function(v) getgenv().LegitTracerWidth = v end
+})
+
+LegitRight:AddSlider('LegitTracerLifetime', {
+    Text = 'Tracer Lifetime',
+    Default = 0.3,
+    Min = 0.1,
+    Max = 1,
+    Rounding = 1,
+    Callback = function(v) getgenv().LegitTracerLifetime = v end
+})
+
+local function isVisible(origin, targetPos)
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = { LocalPlayer.Character }
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    params.IgnoreWater = true
+    local result = Workspace:Raycast(origin, (targetPos - origin).Unit * 1000, params)
+    return not result or result.Instance:IsDescendantOf(workspace:FindFirstChild("Characters"))
+end
+
+local function createTracer(startPos, endPos)
+    local beam = Instance.new("Beam")
+    beam.Color = ColorSequence.new(getgenv().LegitTracerColor)
+    beam.Width0 = getgenv().LegitTracerWidth
+    beam.Width1 = getgenv().LegitTracerWidth
+    beam.Texture = "rbxassetid://7136858729"
+    beam.TextureSpeed = 2
+    beam.Brightness = 5
+    beam.LightEmission = 1
+    beam.FaceCamera = true
+    local attachment0 = Instance.new("Attachment")
+    local attachment1 = Instance.new("Attachment")
+    attachment0.WorldPosition = startPos
+    attachment1.WorldPosition = endPos
+    beam.Attachment0 = attachment0
+    beam.Attachment1 = attachment1
+    beam.Parent = Workspace
+    attachment0.Parent = Workspace
+    attachment1.Parent = Workspace
+    delay(getgenv().LegitTracerLifetime, function()
+        beam:Destroy()
+        attachment0:Destroy()
+        attachment1:Destroy()
+    end)
+end
+
+local function getPredictedPosition(pos, vel)
+    if not getgenv().LegitAimbotPrediction then return pos end
+    return pos + (vel * getgenv().LegitAimbotPredictionAmount)
+end
+
+local function aimAtTarget(targetCharacter)
+    if not getgenv().LegitAimbotEnabled then return end
+    local root = targetCharacter:FindFirstChild("HumanoidRootPart")
+    local humanoid = targetCharacter:FindFirstChild("Humanoid")
+    if not root or not humanoid then return end
+    if getgenv().LegitTracerHealthCheck and humanoid.Health <= 0 then return end
+    if getgenv().LegitTracerVisibleCheck and not isVisible(Camera.CFrame.Position, root.Position) then return end
+    local predicted = getPredictedPosition(root.Position, root.Velocity)
+    local current = Camera.CFrame
+    local targetCF = CFrame.lookAt(current.Position, predicted)
+    Camera.CFrame = current:Lerp(targetCF, 1 / getgenv().LegitAimbotSmoothness)
+end
+
+ShootEvent.OnClientEvent:Connect(function(targetCharacter)
+    local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+    if not localRoot or not targetRoot then return end
+    if getgenv().LegitTracerEnabled then
+        createTracer(localRoot.Position, targetRoot.Position)
+    end
+    aimAtTarget(targetCharacter)
+end)
+
+ShootEvent:Connect(function(targetCharacter)
+    local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+    if not localRoot or not targetRoot then return end
+    if getgenv().LegitTracerEnabled then
+        createTracer(localRoot.Position, targetRoot.Position)
+    end
+    aimAtTarget(targetCharacter)
+end)
+
+ShootEvent.OnServerEvent:Connect(function(player, targetCharacter)
+    if player ~= LocalPlayer then return end
+    local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+    if not localRoot or not targetRoot then return end
+    if getgenv().LegitTracerEnabled then
+        createTracer(localRoot.Position, targetRoot.Position)
+    end
+    aimAtTarget(targetCharacter)
+end)
