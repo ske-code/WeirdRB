@@ -64,31 +64,21 @@ RagebotLeft:AddToggle('RagebotEnabled', {
     end
 })
 
-RagebotLeft:AddSlider('FireRate', {
-    Text = 'FireRate',
-    Default = 100,
-    Min = 1,
-    Max = 500,
-    Rounding = 0,
-    Callback = function(Value)
-        getgenv().FireRate = Value
-        getgenv().FireWait = 1 / Value
-    end
-})
-RagebotLeft:AddInput('FireRateTextbox', {
-    Text = 'FireRate (Inf)',
+RagebotLeft:AddInput('FireRate', {
+    Text = 'FireRate (Inf) ',
     Default = '500',
+    Placeholder = 'Enter FireRate',
     Callback = function(Value)
         local numValue = tonumber(Value)
         if numValue and numValue > 0 then
             getgenv().FireRate = numValue
             getgenv().FireWait = 1 / numValue
         else
-            Options.FireRateTextbox:SetValue(tostring(getgenv().FireRate))
+            Options.FireRate:SetValue(tostring(getgenv().FireRate))
         end
     end
 })
-Options.FireRateTextbox:SetValue(tostring(getgenv().FireRate))
+
 RagebotLeft:AddDropdown('HitSound', {
     Values = {'Bell', 'None', 'Classic'},
     Default = 1,
