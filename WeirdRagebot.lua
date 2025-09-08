@@ -11,7 +11,7 @@ Library.ShowCustomCursor = true
 Library.NotifySide = "Left"
 
 local Window = Library:CreateWindow({
-    Title = 'ske.gg - Ragebot',
+    Title = 'ske.gg',
     Center = true,
     AutoShow = true,
     Resizable = true,
