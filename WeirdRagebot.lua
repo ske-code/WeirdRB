@@ -507,20 +507,7 @@ function createBeamTracer(startPos, endPos)
     end
 end
 
-function getRandomOffsetPosition(targetPosition)
-    local randomStartPos = Vector3.new(
-        startPos.X + math.random(-8, 8),
-        startPos.Y + math.random(-4, 4),
-        startPos.Z + math.random(-8, 8)
-    )
-    
-    local targetPos = targetHead.Position
-    local randomEndPos = Vector3.new(
-        targetPos.X + math.random(-2, 2),
-        targetPos.Y + math.random(-1, 1),
-        targetPos.Z + math.random(-2, 2)
-    )
-end
+
 
 function getCurrentTool()
     if localPlayer.Character then
@@ -764,10 +751,7 @@ spawn(function()
                     end
                 end
                 
-                local visualTargetPosition = targetPosition
-                if getgenv().RandomBullet then
-                    visualTargetPosition = getRandomOffsetPosition(targetPosition)
-                end
+                
                 
                 local tracerStartPos = startPos
                 local tracerEndPos = visualTargetPosition
