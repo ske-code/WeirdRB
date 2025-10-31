@@ -668,12 +668,24 @@ function canSeeTarget(startPos, endPos)
     return true
 end
 function findVisiblePosition(startPos, targetPos)
+    if not startPos or typeof(startPos) ~= "Vector3" then
+        return targetPos
+    end
+    
+    if not targetPos or typeof(targetPos) ~= "Vector3" then
+        return targetPos
+    end
+    
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
     raycastParams.FilterDescendantsInstances = {localPlayer.Character}
     
     local direction = (targetPos - startPos)
     local distance = direction.Magnitude
+    
+    if distance == 0 then
+        return targetPos
+    end
     
     local raycastResult = workspace:Raycast(startPos, direction.Unit * distance, raycastParams)
     
@@ -697,6 +709,11 @@ function findVisiblePosition(startPos, targetPos)
     
     local testDirection = (targetPos - offsetPos)
     local testDistance = testDirection.Magnitude
+    
+    if testDistance == 0 then
+        return offsetPos
+    end
+    
     local testRay = workspace:Raycast(offsetPos, testDirection.Unit * testDistance, raycastParams)
     
     if not testRay then
@@ -716,6 +733,11 @@ function findVisiblePosition(startPos, targetPos)
         local sideOffset = hitPosition + sideDir * (hitSize.Magnitude + 3)
         local sideTestDir = (targetPos - sideOffset)
         local sideTestDist = sideTestDir.Magnitude
+        
+        if sideTestDist == 0 then
+            return sideOffset
+        end
+        
         local sideRay = workspace:Raycast(sideOffset, sideTestDir.Unit * sideTestDist, raycastParams)
         
         if not sideRay then
@@ -725,7 +747,6 @@ function findVisiblePosition(startPos, targetPos)
     
     return hitPosition + hitNormal * 5
 end
-
 spawn(function()
     while true do
         wait(getgenv().FireWait)
