@@ -416,12 +416,18 @@ end
 function getRandomAngleOffset()
     if not getgenv().RandomAngle then return Vector3.zero end
     
-    local offset = Vector3.new(
-        math.random(-getgenv().RandomAngleAmount, getgenv().RandomAngleAmount),
-        math.random(-getgenv().RandomAngleAmount, getgenv().RandomAngleAmount),
-        math.random(-getgenv().RandomAngleAmount, getgenv().RandomAngleAmount)
+    local randomStartPos = Vector3.new(
+        startPos.X + math.random(-8, 8),
+        startPos.Y + math.random(-4, 4),
+        startPos.Z + math.random(-8, 8)
     )
-    return offset
+    
+    local targetPos = targetHead.Position
+    local randomEndPos = Vector3.new(
+        targetPos.X + math.random(-2, 2),
+        targetPos.Y + math.random(-1, 1),
+        targetPos.Z + math.random(-2, 2)
+    )
 end
 
 function createBeamTracer(startPos, endPos)
@@ -502,12 +508,18 @@ function createBeamTracer(startPos, endPos)
 end
 
 function getRandomOffsetPosition(targetPosition)
-    local offset = Vector3.new(
-        math.random(-getgenv().RandomOffset, getgenv().RandomOffset),
-        math.random(-getgenv().RandomOffset, getgenv().RandomOffset),
-        math.random(-getgenv().RandomOffset, getgenv().RandomOffset)
+    local randomStartPos = Vector3.new(
+        startPos.X + math.random(-8, 8),
+        startPos.Y + math.random(-4, 4),
+        startPos.Z + math.random(-8, 8)
     )
-    return targetPosition + offset
+    
+    local targetPos = targetHead.Position
+    local randomEndPos = Vector3.new(
+        targetPos.X + math.random(-2, 2),
+        targetPos.Y + math.random(-1, 1),
+        targetPos.Z + math.random(-2, 2)
+    )
 end
 
 function getCurrentTool()
@@ -655,7 +667,6 @@ function canSeeTarget(startPos, endPos)
     end
     return true
 end
-
 function findVisiblePosition(startPos, targetPos)
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
@@ -667,49 +678,52 @@ function findVisiblePosition(startPos, targetPos)
     local raycastResult = workspace:Raycast(startPos, direction.Unit * distance, raycastParams)
     
     if not raycastResult then
-        return startPos, targetPos
+        return targetPos
     end
     
     local hitPosition = raycastResult.Position
     local hitPart = raycastResult.Instance
     
     if not hitPart then
-        return startPos, targetPos
+        return targetPos
     end
     
-    local obstacleSize = hitPart.Size
-    local obstacleCFrame = hitPart.CFrame
+    local hitSize = hitPart.Size
+    local hitCFrame = hitPart.CFrame
     
-    local toObstacle = (hitPosition - startPos)
-    local rightVector = obstacleCFrame.RightVector
-    local upVector = obstacleCFrame.UpVector
-    local lookVector = obstacleCFrame.LookVector
+    local hitNormal = raycastResult.Normal
     
-    local dotRight = toObstacle:Dot(rightVector)
-    local dotUp = toObstacle:Dot(upVector)
-    local dotLook = toObstacle:Dot(lookVector)
+    local offsetPos = hitPosition + hitNormal * 2
     
-    local offsetDirection
-    if math.abs(dotRight) >= math.abs(dotUp) and math.abs(dotRight) >= math.abs(dotLook) then
-        offsetDirection = dotRight > 0 and rightVector or -rightVector
-    elseif math.abs(dotUp) >= math.abs(dotLook) then
-        offsetDirection = dotUp > 0 and upVector or -upVector
-    else
-        offsetDirection = dotLook > 0 and lookVector or -lookVector
-    end
-    
-    local offsetDistance = (obstacleSize.X + obstacleSize.Y + obstacleSize.Z) / 6 + 2
-    local testStartPos = hitPosition + offsetDirection * offsetDistance
-    
-    local testDirection = (targetPos - testStartPos)
+    local testDirection = (targetPos - offsetPos)
     local testDistance = testDirection.Magnitude
-    local testRay = workspace:Raycast(testStartPos, testDirection.Unit * testDistance, raycastParams)
+    local testRay = workspace:Raycast(offsetPos, testDirection.Unit * testDistance, raycastParams)
     
     if not testRay then
-        return testStartPos, targetPos
+        return offsetPos
     end
     
-    return hitPosition, targetPos
+    local sideDirections = {
+        hitCFrame.RightVector,
+        -hitCFrame.RightVector,
+        hitCFrame.UpVector,
+        -hitCFrame.UpVector,
+        hitCFrame.LookVector,
+        -hitCFrame.LookVector
+    }
+    
+    for _, sideDir in pairs(sideDirections) do
+        local sideOffset = hitPosition + sideDir * (hitSize.Magnitude + 3)
+        local sideTestDir = (targetPos - sideOffset)
+        local sideTestDist = sideTestDir.Magnitude
+        local sideRay = workspace:Raycast(sideOffset, sideTestDir.Unit * sideTestDist, raycastParams)
+        
+        if not sideRay then
+            return sideOffset
+        end
+    end
+    
+    return hitPosition + hitNormal * 5
 end
 
 spawn(function()
